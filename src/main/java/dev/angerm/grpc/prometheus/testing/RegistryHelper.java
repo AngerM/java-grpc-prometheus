@@ -1,6 +1,6 @@
 // Copyright 2016 Dino Wernli. All Rights Reserved. See LICENSE for licensing terms.
 
-package me.dinowernli.grpc.prometheus.testing;
+package dev.angerm.grpc.prometheus.testing;
 
 import java.util.Enumeration;
 import java.util.Optional;

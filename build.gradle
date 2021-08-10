@@ -1,0 +1,87 @@
+plugins {
+    id 'java'
+    id 'signing'
+    id 'maven-publish'
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = 11
+targetCompatibility = 11
+group = 'dev.angerm.grpc.prometheus'
+version= "0.1.0-SNAPSHOT"
+
+dependencies {
+    ['simpleclient',
+     'simpleclient_hotspot',
+     'simpleclient_httpserver',
+    ].each {
+        implementation "io.prometheus:${it}:0.11.0"
+    }
+
+    ['grpc-services',
+     'grpc-core',
+     'grpc-protobuf',
+    ].each {
+        implementation group: 'io.grpc', name: "$it", version: "1.39.0"
+    }
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+publishing {
+    repositories {
+        maven {
+            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username = ossrhUsername
+                password = ossrhPassword
+            }
+        }
+    }
+    publications {
+        agLibrary(MavenPublication) {
+            from components.java
+            pom {
+                name = 'Java Grpc Prometheus'
+                description = 'GRPC Interceptor for prometheus metrics'
+                url = 'https://github.com/AngerM/java-grpc-prometheus'
+                licenses {
+                    license {
+                        name = 'APACHE LICENSE, VERSION 2.0'
+                        url = 'https://github.com/AngerM/java-grpc-prometheus/blob/main/LICENSE'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'AngerM'
+                        name = 'Matt Anger'
+                        email = 'matt@angerm.dev'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/AngerM/java-grpc-prometheus.git'
+                    developerConnection = 'scm:git:https://github.com/AngerM/java-grpc-prometheus.git'
+                    url = 'https://github.com/AngerM/java-grpc-prometheus'
+                }
+            }
+        }
+    }
+}
+tasks.withType(Sign) {
+    onlyIf { isReleaseVersion }
+}
+
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+signing {
+    required { isReleaseVersion && gradle.taskGraph.hasTask("publish") }
+    sign configurations.archives
+    sign publishing.publications.agLibrary
+}

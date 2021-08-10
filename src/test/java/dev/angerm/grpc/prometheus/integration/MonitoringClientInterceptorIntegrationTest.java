@@ -1,4 +1,4 @@
-package me.dinowernli.grpc.prometheus.integration;
+package dev.angerm.grpc.prometheus.integration;
 
 import com.github.dinowernli.proto.grpc.prometheus.HelloProto;
 import com.github.dinowernli.proto.grpc.prometheus.HelloProto.HelloResponse;
@@ -11,10 +11,10 @@ import io.grpc.stub.StreamObserver;
 import io.grpc.testing.StreamRecorder;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
-import me.dinowernli.grpc.prometheus.Configuration;
-import me.dinowernli.grpc.prometheus.MonitoringClientInterceptor;
-import me.dinowernli.grpc.prometheus.testing.HelloServiceImpl;
-import me.dinowernli.grpc.prometheus.testing.RegistryHelper;
+import dev.angerm.grpc.prometheus.Configuration;
+import dev.angerm.grpc.prometheus.MonitoringClientInterceptor;
+import dev.angerm.grpc.prometheus.testing.HelloServiceImpl;
+import dev.angerm.grpc.prometheus.testing.RegistryHelper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

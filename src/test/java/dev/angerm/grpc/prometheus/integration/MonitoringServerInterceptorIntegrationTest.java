@@ -2,11 +2,6 @@
 
 package dev.angerm.grpc.prometheus.integration;
 
-import com.github.dinowernli.proto.grpc.prometheus.HelloProto.HelloRequest;
-import com.github.dinowernli.proto.grpc.prometheus.HelloProto.HelloResponse;
-import com.github.dinowernli.proto.grpc.prometheus.HelloServiceGrpc;
-import com.github.dinowernli.proto.grpc.prometheus.HelloServiceGrpc.HelloServiceBlockingStub;
-import com.github.dinowernli.proto.grpc.prometheus.HelloServiceGrpc.HelloServiceStub;
 import com.google.common.collect.ImmutableList;
 import io.grpc.Channel;
 import io.grpc.Server;
@@ -19,8 +14,6 @@ import io.prometheus.client.Collector.MetricFamilySamples;
 import io.prometheus.client.CollectorRegistry;
 import dev.angerm.grpc.prometheus.Configuration;
 import dev.angerm.grpc.prometheus.MonitoringServerInterceptor;
-import dev.angerm.grpc.prometheus.testing.HelloServiceImpl;
-import dev.angerm.grpc.prometheus.testing.RegistryHelper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

@@ -6,8 +6,13 @@ import com.google.common.collect.ImmutableList;
 import io.grpc.Channel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
+import io.grpc.health.v1.HealthCheckRequest;
+import io.grpc.health.v1.HealthCheckResponse;
+import io.grpc.health.v1.HealthGrpc;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.protobuf.services.HealthStatusManager;
+import io.grpc.stub.AbstractStub;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.StreamRecorder;
 import io.prometheus.client.Collector.MetricFamilySamples;
@@ -19,6 +24,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Set;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -28,9 +34,7 @@ import static com.google.common.truth.Truth.assertThat;
  */
 public class MonitoringServerInterceptorIntegrationTest {
   private static final String grpcServerName = "grpc-server";
-  private static final String RECIPIENT = "Dave";
-  private static final HelloRequest REQUEST = HelloRequest.newBuilder()
-      .setRecipient(RECIPIENT)
+  private static final HealthCheckRequest REQUEST = HealthCheckRequest.newBuilder()
       .build();
 
   private static final Configuration CHEAP_METRICS = Configuration.cheapMetricsOnly();
@@ -52,108 +56,22 @@ public class MonitoringServerInterceptorIntegrationTest {
   @Test
   public void unaryRpcMetrics() throws Throwable {
     startGrpcServer(CHEAP_METRICS);
-    createGrpcBlockingStub().sayHello(REQUEST);
+    createGrpcBlockingStub().check(REQUEST);
 
     assertThat(findRecordedMetricOrThrow("grpc_server_started_total").samples).hasSize(1);
-    assertThat(findRecordedMetricOrThrow("grpc_server_msg_received_total").samples).isEmpty();
-    assertThat(findRecordedMetricOrThrow("grpc_server_msg_sent_total").samples).isEmpty();
 
     MetricFamilySamples handled = findRecordedMetricOrThrow("grpc_server_handled_total");
     assertThat(handled.samples).hasSize(1);
     assertThat(handled.samples.get(0).labelValues).containsExactly(
-        "UNARY", HelloServiceImpl.SERVICE_NAME, HelloServiceImpl.UNARY_METHOD_NAME, 
+        "UNARY", HealthGrpc.SERVICE_NAME, HealthGrpc.getCheckMethod().getBareMethodName(),
         "OK", "OK"); // TODO: These are the "code" and "grpc_code" labels which are currently duplicated. "code" should be deprecated in a future release.
-    assertThat(handled.samples.get(0).value).isWithin(0).of(1);
-  }
-
-  @Test
-  public void clientStreamRpcMetrics() throws Throwable {
-    startGrpcServer(CHEAP_METRICS);
-    StreamRecorder<HelloResponse> streamRecorder = StreamRecorder.create();
-    StreamObserver<HelloRequest> requestStream =
-        createGrpcStub().sayHelloClientStream(streamRecorder);
-    requestStream.onNext(REQUEST);
-    requestStream.onNext(REQUEST);
-    requestStream.onNext(REQUEST);
-
-    // Not a blocking stub, so we need to wait.
-    streamRecorder.awaitCompletion();
-
-    assertThat(findRecordedMetricOrThrow("grpc_server_started_total").samples).hasSize(1);
-    assertThat(findRecordedMetricOrThrow("grpc_server_msg_received_total").samples).hasSize(1);
-    assertThat(findRecordedMetricOrThrow("grpc_server_msg_sent_total").samples).isEmpty();
-
-    MetricFamilySamples handled = findRecordedMetricOrThrow("grpc_server_handled_total");
-    assertThat(handled.samples).hasSize(1);
-    assertThat(handled.samples.get(0).labelValues).containsExactly(
-        "CLIENT_STREAMING",
-        HelloServiceImpl.SERVICE_NAME,
-        HelloServiceImpl.CLIENT_STREAM_METHOD_NAME,
-        "OK", // TODO: These are the "code" and "grpc_code" labels which are currently duplicated. "code" should be deprecated in a future release.
-        "OK");
-    assertThat(handled.samples.get(0).value).isWithin(0).of(1);
-  }
-
-  @Test
-  public void serverStreamRpcMetrics() throws Throwable {
-    startGrpcServer(CHEAP_METRICS);
-    ImmutableList<HelloResponse> responses =
-        ImmutableList.copyOf(createGrpcBlockingStub().sayHelloServerStream(REQUEST));
-
-    assertThat(findRecordedMetricOrThrow("grpc_server_started_total").samples).hasSize(1);
-    assertThat(findRecordedMetricOrThrow("grpc_server_msg_received_total").samples).isEmpty();
-    assertThat(findRecordedMetricOrThrow("grpc_server_msg_sent_total").samples).hasSize(1);
-
-    MetricFamilySamples handled = findRecordedMetricOrThrow("grpc_server_handled_total");
-    assertThat(handled.samples).hasSize(1);
-    assertThat(handled.samples.get(0).labelValues).containsExactly(
-        "SERVER_STREAMING",
-        HelloServiceImpl.SERVICE_NAME,
-        HelloServiceImpl.SERVER_STREAM_METHOD_NAME,
-        "OK", // TODO: These are the "code" and "grpc_code" labels which are currently duplicated. "code" should be deprecated in a future release.
-        "OK");
-    assertThat(handled.samples.get(0).value).isWithin(0).of(1);
-
-    MetricFamilySamples messagesSent = findRecordedMetricOrThrow("grpc_server_msg_sent_total");
-    assertThat(messagesSent.samples.get(0).labelValues).containsExactly(
-        "SERVER_STREAMING",
-        HelloServiceImpl.SERVICE_NAME,
-        HelloServiceImpl.SERVER_STREAM_METHOD_NAME);
-    assertThat(messagesSent.samples.get(0).value).isWithin(0).of(responses.size());
-  }
-
-  @Test
-  public void bidiStreamRpcMetrics() throws Throwable {
-    startGrpcServer(CHEAP_METRICS);
-    StreamRecorder<HelloResponse> streamRecorder = StreamRecorder.create();
-    StreamObserver<HelloRequest> requestStream =
-        createGrpcStub().sayHelloBidiStream(streamRecorder);
-    requestStream.onNext(REQUEST);
-    requestStream.onNext(REQUEST);
-    requestStream.onCompleted();
-
-    // Not a blocking stub, so we need to wait.
-    streamRecorder.awaitCompletion();
-
-    assertThat(findRecordedMetricOrThrow("grpc_server_started_total").samples).hasSize(1);
-    assertThat(findRecordedMetricOrThrow("grpc_server_msg_received_total").samples).hasSize(1);
-    assertThat(findRecordedMetricOrThrow("grpc_server_msg_sent_total").samples).hasSize(1);
-
-    MetricFamilySamples handled = findRecordedMetricOrThrow("grpc_server_handled_total");
-    assertThat(handled.samples).hasSize(1);
-    assertThat(handled.samples.get(0).labelValues).containsExactly(
-        "BIDI_STREAMING",
-        HelloServiceImpl.SERVICE_NAME,
-        HelloServiceImpl.BIDI_STREAM_METHOD_NAME,
-        "OK", // TODO: These are the "code" and "grpc_code" labels which are currently duplicated. "code" should be deprecated in a future release.
-        "OK");
     assertThat(handled.samples.get(0).value).isWithin(0).of(1);
   }
 
   @Test
   public void noHistogramIfDisabled() throws Throwable {
     startGrpcServer(CHEAP_METRICS);
-    createGrpcBlockingStub().sayHello(REQUEST);
+    createGrpcBlockingStub().check(REQUEST);
     assertThat(RegistryHelper.findRecordedMetric(
         "grpc_server_handled_latency_seconds", collectorRegistry).isPresent()).isFalse();
   }
@@ -161,7 +79,7 @@ public class MonitoringServerInterceptorIntegrationTest {
   @Test
   public void addsHistogramIfEnabled() throws Throwable {
     startGrpcServer(ALL_METRICS);
-    createGrpcBlockingStub().sayHello(REQUEST);
+    createGrpcBlockingStub().check(REQUEST);
 
     MetricFamilySamples latency = findRecordedMetricOrThrow("grpc_server_handled_latency_seconds");
     assertThat(latency.samples.size()).isGreaterThan(0);
@@ -171,7 +89,7 @@ public class MonitoringServerInterceptorIntegrationTest {
   public void overridesHistogramBuckets() throws Throwable {
     double[] buckets = new double[] {0.1, 0.2, 0.8};
     startGrpcServer(ALL_METRICS.withLatencyBuckets(buckets));
-    createGrpcBlockingStub().sayHello(REQUEST);
+    createGrpcBlockingStub().check(REQUEST);
 
     long expectedNum = buckets.length + 1;  // Our two buckets and the Inf buckets.
     assertThat(countSamples(
@@ -183,17 +101,9 @@ public class MonitoringServerInterceptorIntegrationTest {
   public void recordsMultipleCalls() throws Throwable {
     startGrpcServer(CHEAP_METRICS);
 
-    createGrpcBlockingStub().sayHello(REQUEST);
-    createGrpcBlockingStub().sayHello(REQUEST);
-    createGrpcBlockingStub().sayHello(REQUEST);
-
-    StreamRecorder<HelloResponse> streamRecorder = StreamRecorder.create();
-    StreamObserver<HelloRequest> requestStream =
-        createGrpcStub().sayHelloBidiStream(streamRecorder);
-    requestStream.onNext(REQUEST);
-    requestStream.onNext(REQUEST);
-    requestStream.onCompleted();
-    streamRecorder.awaitCompletion();
+    createGrpcBlockingStub().check(REQUEST);
+    createGrpcBlockingStub().check(REQUEST);
+    createGrpcBlockingStub().check(REQUEST);
 
     assertThat(findRecordedMetricOrThrow("grpc_server_started_total").samples).hasSize(2);
     assertThat(findRecordedMetricOrThrow("grpc_server_handled_total").samples).hasSize(2);
@@ -202,8 +112,9 @@ public class MonitoringServerInterceptorIntegrationTest {
   private void startGrpcServer(Configuration monitoringConfig) {
     MonitoringServerInterceptor interceptor = MonitoringServerInterceptor.create(
         monitoringConfig.withCollectorRegistry(collectorRegistry));
+    var manager =  new HealthStatusManager();
     grpcServer = InProcessServerBuilder.forName(grpcServerName)
-        .addService(ServerInterceptors.intercept(new HelloServiceImpl().bindService(), interceptor))
+        .addService(ServerInterceptors.intercept(manager.getHealthService(), interceptor))
         .build();
     try {
       grpcServer.start();
@@ -216,16 +127,16 @@ public class MonitoringServerInterceptorIntegrationTest {
     return RegistryHelper.findRecordedMetricOrThrow(name, collectorRegistry);
   }
 
-  private HelloServiceBlockingStub createGrpcBlockingStub() {
-    return HelloServiceGrpc.newBlockingStub(createGrpcChannel());
+  private HealthGrpc.HealthBlockingStub createGrpcBlockingStub() {
+    return HealthGrpc.newBlockingStub(createGrpcChannel());
   }
 
   private int countSamples(String metricName, String sampleName) {
     return RegistryHelper.countSamples(metricName, sampleName, collectorRegistry);
   }
 
-  private HelloServiceStub createGrpcStub() {
-    return HelloServiceGrpc.newStub(createGrpcChannel());
+  private HealthGrpc.HealthStub createGrpcStub() {
+    return HealthGrpc.newStub(createGrpcChannel());
   }
 
   private Channel createGrpcChannel() {

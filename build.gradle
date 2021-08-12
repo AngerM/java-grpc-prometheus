@@ -15,8 +15,6 @@ version= "0.1.0-SNAPSHOT"
 
 dependencies {
     ['simpleclient',
-     'simpleclient_hotspot',
-     'simpleclient_httpserver',
     ].each {
         implementation "io.prometheus:${it}:0.11.0"
     }
@@ -27,6 +25,9 @@ dependencies {
     ].each {
         implementation group: 'io.grpc', name: "$it", version: "1.39.0"
     }
+
+    testImplementation(platform('org.junit:junit-bom:5.7.2'))
+	  testImplementation('org.junit.jupiter:junit-jupiter')
 }
 
 java {
@@ -84,4 +85,8 @@ signing {
     required { isReleaseVersion && gradle.taskGraph.hasTask("publish") }
     sign configurations.archives
     sign publishing.publications.agLibrary
+}
+
+test {
+    useJUnitPlatform()
 }

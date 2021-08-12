@@ -28,7 +28,7 @@ dependencies {
 
     testImplementation group: 'io.grpc', name: "grpc-testing", version: "1.39.0"
     testImplementation(platform('org.junit:junit-bom:5.7.2'))
-	testImplementation('org.junit.jupiter:junit-jupiter')
+    testImplementation('org.junit.jupiter:junit-jupiter')
     testImplementation group: 'com.google.truth.extensions', name: 'truth-java8-extension', version: '1.1.3'
 }
 

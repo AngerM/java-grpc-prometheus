@@ -1,3 +1,6 @@
+// Copyright 2016 Dino Wernli. All Rights Reserved. See LICENSE for licensing terms.
+// Updates copyright 2021 Matthew Anger
+
 package dev.angerm.grpc.prometheus.integration;
 
 import java.util.Enumeration;

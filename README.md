@@ -26,15 +26,13 @@ Note that by passing a `Configuration` instance to the interceptors, it is possi
 * Which histogram buckets to use for the latency metrics.
 * Which Prometheus `CollectorRegistry` the metrics get registered with.
 
-The server interceptors have an identical implementation in Golang, [go-grpc-prometheus](https://github.com/mwitkow/go-grpc-prometheus), brought to you by [@MWitkow](http://twitter.com/mwitkow).
+This library was forked by AngerM to make some changes and publish to maven central from https://github.com/grpc-ecosystem/java-grpc-prometheus.
 
 ## Usage
 
-This library is made available on the [dinowernli GitHub Maven repository](https://github.com/dinowernli/maven-repos/tree/master).
-Once the repository is set up, the library can be included using the following artifact id:
-
+This library is made available on Maven Central.
 ```
-me.dinowernli:java-grpc-prometheus:0.3.0
+dev.angerm.grpc.prometheus:java-grpc-prometheus:<version>
 ```
 
 In order to attach the monitoring server interceptor to your gRPC server, you can do the following:

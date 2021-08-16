@@ -3,6 +3,7 @@
 package dev.angerm.grpc.prometheus;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,12 +46,14 @@ public class MonitoringServerInterceptor implements ServerInterceptor {
         next.startCall(monitoringCall, requestHeaders), metrics, grpcMethod);
   }
 
-  private Map<String, String> customHeadersToLog(Metadata requestHeaders) {
-    var returnVal = new HashMap<String, String>();
+  private List<String> customHeadersToLog(Metadata requestHeaders) {
+    var returnVal = new ArrayList<String>();
     List<String> headers = configuration.getHeadersToLog();
+    // keep these in the same order as they are listed in the config
+    // for simplicity when adding all the labels to metrics
     for (String header: headers) {
       var value = requestHeaders.get(Metadata.Key.of(header, Metadata.ASCII_STRING_MARSHALLER));
-      returnVal.put(header, value);
+      returnVal.add(value);
     }
     return returnVal;
   }

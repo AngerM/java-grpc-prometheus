@@ -166,7 +166,7 @@ class ServerMetrics {
     }
 
     /** Creates a {@link ServerMetrics} for the supplied gRPC method. */
-    ServerMetrics createMetricsForMethod(GrpcMethod grpcMethod, Map<String, String> headers) {
+    ServerMetrics createMetricsForMethod(GrpcMethod grpcMethod, List<String> headers) {
       return new ServerMetrics(
           grpcMethod,
           serverStarted,

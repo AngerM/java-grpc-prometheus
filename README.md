@@ -1,8 +1,7 @@
 # java-grpc-prometheus
 
-[![Build Status](https://travis-ci.org/grpc-ecosystem/java-grpc-prometheus.svg?branch=master)](https://travis-ci.org/grpc-ecosystem/java-grpc-prometheus)
-
 Java interceptors which can be used to monitor Grpc services using Prometheus.
+Available on [Maven Central](https://search.maven.org/artifact/dev.angerm.grpc.prometheus/java-grpc-prometheus)
 
 ## Features
 

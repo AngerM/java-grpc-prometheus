@@ -67,6 +67,7 @@ class ServerMetrics {
   private final Counter serverStreamMessagesReceived;
   private final Counter serverStreamMessagesSent;
   private final Optional<Histogram> serverHandledLatencySeconds;
+  private final List<String> headers;
 
   private final GrpcMethod method;
 
@@ -76,13 +77,15 @@ class ServerMetrics {
       Counter serverHandled,
       Counter serverStreamMessagesReceived,
       Counter serverStreamMessagesSent,
-      Optional<Histogram> serverHandledLatencySeconds) {
+      Optional<Histogram> serverHandledLatencySeconds,
+      List<String> headers) {
     this.method = method;
     this.serverStarted = serverStarted;
     this.serverHandled = serverHandled;
     this.serverStreamMessagesReceived = serverStreamMessagesReceived;
     this.serverStreamMessagesSent = serverStreamMessagesSent;
     this.serverHandledLatencySeconds = serverHandledLatencySeconds;
+    this.headers = headers;
   }
 
   public void recordCallStarted() {
@@ -173,7 +176,8 @@ class ServerMetrics {
           serverHandled,
           serverStreamMessagesReceived,
           serverStreamMessagesSent,
-          serverHandledLatencySeconds);
+          serverHandledLatencySeconds,
+          headers);
     }
   }
 
@@ -181,6 +185,7 @@ class ServerMetrics {
     List<String> allLabels = new ArrayList<>();
     Collections.addAll(allLabels, method.type(), method.serviceName(), method.methodName());
     Collections.addAll(allLabels, labels);
+    allLabels.addAll(headers);
     return collector.labels(allLabels.toArray(new String[0]));
   }
 }

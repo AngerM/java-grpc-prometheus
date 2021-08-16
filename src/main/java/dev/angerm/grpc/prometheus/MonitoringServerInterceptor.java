@@ -3,6 +3,9 @@
 package dev.angerm.grpc.prometheus;
 
 import java.time.Clock;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -35,10 +38,20 @@ public class MonitoringServerInterceptor implements ServerInterceptor {
       ServerCallHandler<R, S> next) {
     MethodDescriptor<R, S> methodDescriptor = call.getMethodDescriptor();
     GrpcMethod grpcMethod = GrpcMethod.of(methodDescriptor);
-    ServerMetrics metrics = serverMetricsFactory.createMetricsForMethod(grpcMethod);
+    var headers = customHeadersToLog(requestHeaders);
+    ServerMetrics metrics = serverMetricsFactory.createMetricsForMethod(grpcMethod, headers);
     ServerCall<R,S> monitoringCall = new MonitoringServerCall(call, clock, grpcMethod, metrics, configuration);
     return new MonitoringServerCallListener<>(
         next.startCall(monitoringCall, requestHeaders), metrics, grpcMethod);
   }
 
+  private Map<String, String> customHeadersToLog(Metadata requestHeaders) {
+    var returnVal = new HashMap<String, String>();
+    List<String> headers = configuration.getHeadersToLog();
+    for (String header: headers) {
+      var value = requestHeaders.get(Metadata.Key.of(header, Metadata.ASCII_STRING_MARSHALLER));
+      returnVal.put(header, value);
+    }
+    return returnVal;
+  }
 }

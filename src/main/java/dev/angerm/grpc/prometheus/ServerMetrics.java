@@ -2,10 +2,7 @@
 
 package dev.angerm.grpc.prometheus;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import io.grpc.Status.Code;
 import io.prometheus.client.CollectorRegistry;
@@ -20,42 +17,49 @@ import io.prometheus.client.SimpleCollector;
  * definition and collection registry.
  */
 class ServerMetrics {
+  private static final List<String> serverStartedBuilderDefaultLabels = Arrays.asList( "grpc_type", "grpc_service", "grpc_method" );
   private static final Counter.Builder serverStartedBuilder = Counter.build()
       .namespace("grpc")
       .subsystem("server")
       .name("started_total")
-      .labelNames("grpc_type", "grpc_service", "grpc_method")
       .help("Total number of RPCs started on the server.");
 
+  private static final List<String> serverHandledBuilderDefaultLabels = Arrays.asList(
+      "grpc_type", "grpc_service", "grpc_method", "code", "grpc_code"
+  );
   private static final Counter.Builder serverHandledBuilder = Counter.build()
       .namespace("grpc")
       .subsystem("server")
       .name("handled_total")
-      // TODO: The "code" label should be deprecated in a future major release. (See also below in recordServerHandled().)
-      .labelNames("grpc_type", "grpc_service", "grpc_method", "code", "grpc_code")
       .help("Total number of RPCs completed on the server, regardless of success or failure.");
 
+  private static final List<String> serverHandledLatencySecondsBuilderDefaultLabels = Arrays.asList(
+      "grpc_type", "grpc_service", "grpc_method"
+  );
   private static final Histogram.Builder serverHandledLatencySecondsBuilder =
       Histogram.build()
           .namespace("grpc")
           .subsystem("server")
           .name("handled_latency_seconds")
-          .labelNames("grpc_type", "grpc_service", "grpc_method")
           .help("Histogram of response latency (seconds) of gRPC that had been application-level " +
               "handled by the server.");
 
+  private static final List<String> serverStreamMessagesReceivedBuilderDefaultLabels = Arrays.asList(
+      "grpc_type", "grpc_service", "grpc_method"
+  );
   private static final Counter.Builder serverStreamMessagesReceivedBuilder = Counter.build()
       .namespace("grpc")
       .subsystem("server")
       .name("msg_received_total")
-      .labelNames("grpc_type", "grpc_service", "grpc_method")
       .help("Total number of stream messages received from the client.");
 
+  private static final List<String> serverStreamMessagesSentBuilderDefaultLabels = Arrays.asList(
+      "grpc_type", "grpc_service", "grpc_method"
+  );
   private static final Counter.Builder serverStreamMessagesSentBuilder = Counter.build()
       .namespace("grpc")
       .subsystem("server")
       .name("msg_sent_total")
-      .labelNames("grpc_type", "grpc_service", "grpc_method")
       .help("Total number of stream messages sent by the server.");
 
   private final Counter serverStarted;
@@ -119,15 +123,41 @@ class ServerMetrics {
     private final Counter serverStreamMessagesSent;
     private final Optional<Histogram> serverHandledLatencySeconds;
 
+    private String[] buildLabelArray(List<String> defaultLabels, List<String> additionalLabels) {
+      var labelList = new ArrayList<String>(
+          defaultLabels.size() + additionalLabels.size()
+      );
+      labelList.addAll(defaultLabels);
+      labelList.addAll(additionalLabels);
+      var labels = new String[
+          defaultLabels.size() +
+              additionalLabels.size()
+          ];
+      labelList.toArray(labels);
+      return labels;
+    }
+
+
     Factory(Configuration configuration) {
       CollectorRegistry registry = configuration.getCollectorRegistry();
-      this.serverStarted = serverStartedBuilder.register(registry);
-      this.serverHandled = serverHandledBuilder.register(registry);
-      this.serverStreamMessagesReceived = serverStreamMessagesReceivedBuilder.register(registry);
-      this.serverStreamMessagesSent = serverStreamMessagesSentBuilder.register(registry);
+      this.serverStarted = serverStartedBuilder.labelNames(
+          buildLabelArray(serverStartedBuilderDefaultLabels, configuration.getHeadersToLog())
+      ).register(registry);
+      this.serverHandled = serverHandledBuilder.labelNames(
+          buildLabelArray(serverHandledBuilderDefaultLabels, configuration.getHeadersToLog())
+      ).register(registry);
+      this.serverStreamMessagesReceived = serverStreamMessagesReceivedBuilder.labelNames(
+          buildLabelArray(serverStreamMessagesReceivedBuilderDefaultLabels, configuration.getHeadersToLog())
+      ).register(registry);
+      this.serverStreamMessagesSent = serverStreamMessagesSentBuilder.labelNames(
+         buildLabelArray(serverStreamMessagesSentBuilderDefaultLabels, configuration.getHeadersToLog())
+      ).register(registry);
 
       if (configuration.isIncludeLatencyHistograms()) {
         this.serverHandledLatencySeconds = Optional.of(serverHandledLatencySecondsBuilder
+            .labelNames(
+                buildLabelArray(serverHandledLatencySecondsBuilderDefaultLabels, configuration.getHeadersToLog())
+            )
             .buckets(configuration.getLatencyBuckets())
             .register(registry));
       } else {
@@ -136,7 +166,7 @@ class ServerMetrics {
     }
 
     /** Creates a {@link ServerMetrics} for the supplied gRPC method. */
-    ServerMetrics createMetricsForMethod(GrpcMethod grpcMethod) {
+    ServerMetrics createMetricsForMethod(GrpcMethod grpcMethod, Map<String, String> headers) {
       return new ServerMetrics(
           grpcMethod,
           serverStarted,

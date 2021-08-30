@@ -4,6 +4,9 @@ package dev.angerm.grpc.prometheus;
 
 import io.prometheus.client.CollectorRegistry;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Holds information about which metrics should be kept track of during rpc calls. Can be used to
  * turn on more elaborate and expensive metrics, such as latency histograms.
@@ -15,13 +18,14 @@ public class Configuration {
   private final boolean isIncludeLatencyHistograms;
   private final CollectorRegistry collectorRegistry;
   private final double[] latencyBuckets;
+  private final List<String> headersToLog;
 
   /** Returns a {@link Configuration} for recording all cheap metrics about the rpcs. */
   public static Configuration cheapMetricsOnly() {
     return new Configuration(
         false /* isIncludeLatencyHistograms */,
         CollectorRegistry.defaultRegistry,
-        DEFAULT_LATENCY_BUCKETS);
+        DEFAULT_LATENCY_BUCKETS, null);
   }
 
   /**
@@ -32,7 +36,7 @@ public class Configuration {
     return new Configuration(
         true /* isIncludeLatencyHistograms */,
         CollectorRegistry.defaultRegistry,
-        DEFAULT_LATENCY_BUCKETS);
+        DEFAULT_LATENCY_BUCKETS, null);
   }
 
   /**
@@ -40,7 +44,7 @@ public class Configuration {
    * recorded using the supplied {@link CollectorRegistry}.
    */
   public Configuration withCollectorRegistry(CollectorRegistry collectorRegistry) {
-    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, latencyBuckets);
+    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, latencyBuckets, headersToLog);
   }
 
   /**
@@ -48,7 +52,14 @@ public class Configuration {
    * recorded with the specified set of buckets.
    */
   public Configuration withLatencyBuckets(double[] buckets) {
-    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, buckets);
+    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, buckets, headersToLog);
+  }
+
+  /**
+   * Returns a copy {@link Configuration} overriding the headers to log with the specified value.
+   */
+  public Configuration withHeadersToLog(List<String> headers) {
+    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, latencyBuckets, headers);
   }
 
   /** Returns whether or not latency histograms for calls should be included. */
@@ -66,12 +77,17 @@ public class Configuration {
     return latencyBuckets;
   }
 
+  public List<String> getHeadersToLog() {
+    return headersToLog;
+  }
+
   private Configuration(
       boolean isIncludeLatencyHistograms,
       CollectorRegistry collectorRegistry,
-      double[] latencyBuckets) {
+      double[] latencyBuckets, List<String> headersToLog) {
     this.isIncludeLatencyHistograms = isIncludeLatencyHistograms;
     this.collectorRegistry = collectorRegistry;
     this.latencyBuckets = latencyBuckets;
+    this.headersToLog = headersToLog;
   }
 }

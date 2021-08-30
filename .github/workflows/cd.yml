@@ -13,7 +13,7 @@ jobs:
       - name: Setup Java JDK
         uses: actions/setup-java@v1
         with:
-          java-version: 15
+          java-version: 11
 
       - name: Check out repository
         uses: actions/checkout@v2

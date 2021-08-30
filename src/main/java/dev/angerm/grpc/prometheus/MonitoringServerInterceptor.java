@@ -3,10 +3,7 @@
 package dev.angerm.grpc.prometheus;
 
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -53,7 +50,7 @@ public class MonitoringServerInterceptor implements ServerInterceptor {
     // for simplicity when adding all the labels to metrics
     for (String header: headers) {
       var value = requestHeaders.get(Metadata.Key.of(header, Metadata.ASCII_STRING_MARSHALLER));
-      returnVal.add(value);
+      returnVal.add(Objects.requireNonNullElse(value, "UNKNOWN"));
     }
     return returnVal;
   }

@@ -5,6 +5,7 @@ package dev.angerm.grpc.prometheus.integration;
 
 import com.google.common.collect.ImmutableList;
 import io.grpc.Channel;
+import io.grpc.Metadata;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.health.v1.HealthCheckRequest;
@@ -14,6 +15,7 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.protobuf.services.HealthStatusManager;
 import io.grpc.stub.AbstractStub;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.StreamRecorder;
 import io.prometheus.client.Collector.MetricFamilySamples;
@@ -25,6 +27,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -110,9 +115,49 @@ public class MonitoringServerInterceptorIntegrationTest {
     assertThat(findRecordedMetricOrThrow("grpc_server_handled_total").samples).hasSize(2);
   }
 
+  @Test
+  public void recordsCustomHeaders() throws Throwable {
+    startGrpcServer(CHEAP_METRICS, List.of("MY_HEADER"));
+
+    createGrpcBlockingStub().check(REQUEST);
+    createGrpcBlockingStub().check(REQUEST);
+    createGrpcBlockingStub().check(REQUEST);
+
+    var startedTotal = findRecordedMetricOrThrow("grpc_server_started_total").samples.get(0);
+    assertThat(startedTotal.labelNames.contains("MY_HEADER"));
+    assertThat(startedTotal.labelValues.contains("UNKNOWN"));
+    assertThat(startedTotal.value == 3.0);
+    var handledTotal = findRecordedMetricOrThrow("grpc_server_handled_total").samples.get(0);
+    assertThat(handledTotal.labelNames.contains("MY_HEADER"));
+    assertThat(handledTotal.labelValues.contains("UNKNOWN"));
+    assertThat(handledTotal.value == 3.0);
+
+    var metadata = new Metadata();
+    metadata.put(Metadata.Key.of("MY_HEADER", Metadata.ASCII_STRING_MARSHALLER), "MY_VALUE");
+    var metaStub = MetadataUtils.attachHeaders(
+        createGrpcBlockingStub(),
+        metadata
+    );
+    metaStub.check(REQUEST);
+    var newStartedTotal = findRecordedMetricOrThrow("grpc_server_started_total").samples.get(1);
+    assertThat(newStartedTotal.labelNames.contains("MY_HEADER"));
+    assertThat(newStartedTotal.labelValues.contains("MY_VALUE"));
+    assertThat(newStartedTotal.value == 1.0);
+    var newHandledTotal = findRecordedMetricOrThrow("grpc_server_handled_total").samples.get(1);
+    assertThat(newHandledTotal.labelNames.contains("MY_HEADER"));
+    assertThat(newHandledTotal.labelValues.contains("MY_VALUE"));
+    assertThat(newHandledTotal.value == 1.0);
+  }
+
   private void startGrpcServer(Configuration monitoringConfig) {
+    startGrpcServer(monitoringConfig, Collections.emptyList());
+  }
+  private void startGrpcServer(Configuration monitoringConfig, List<String> headers) {
     MonitoringServerInterceptor interceptor = MonitoringServerInterceptor.create(
-        monitoringConfig.withCollectorRegistry(collectorRegistry));
+        monitoringConfig
+            .withCollectorRegistry(collectorRegistry)
+            .withHeadersToLog(headers)
+    );
     var manager =  new HealthStatusManager();
     grpcServer = InProcessServerBuilder.forName(grpcServerName)
         .addService(ServerInterceptors.intercept(manager.getHealthService(), interceptor))

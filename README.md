@@ -1,3 +1,5 @@
+# ARCHIVED: The main repo has seen a resugrence in activity and implemented some of the features I was adding.
+
 # java-grpc-prometheus
 
 Java interceptors which can be used to monitor Grpc services using Prometheus.
